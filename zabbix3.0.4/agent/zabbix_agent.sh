@@ -64,6 +64,9 @@ function AgentHostname()
     read -p  "what's Agent hostname(default:${AGENT_HOSTNAME}) ?:" g_ZABBIX_AGENT_HOSTNAME
     g_ZABBIX_AGENT_HOSTNAME=${g_ZABBIX_AGENT_HOSTNAME:-${AGENT_HOSTNAME}}
 	echo "the agent hostname is:${g_ZABBIX_AGENT_HOSTNAME}"
+    sed -i "/^127.0.0.1/s/^127.0.0.1/&    ${g_ZABBIX_AGENT_HOSTNAME}/g" /etc/hosts
+    sed -i "/^::1/s/^::1/&    ${g_ZABBIX_AGENT_HOSTNAME}/g" /etc/hosts
+    sed -i "s/^HOSTNAME.*/HOSTNAME=${g_ZABBIX_AGENT_HOSTNAME}/g" /etc/sysconfig/network
     
 	#read -p  "the agent hostname is ${g_ZABBIX_AGENT_HOSTNAME} yes or no:" isY
 	#if [ "${isY}" != "y" ] && [ "${isY}" != "Y" ] && [ "${isY}" != "yes" ] && [ "${isY}" != "YES" ];then
