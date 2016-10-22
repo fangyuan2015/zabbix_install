@@ -50,10 +50,15 @@ setenforce 0
 function ServerIP()
 {
 	read -p  "what's zabbix-server-IP ?:" g_ZABBIX_SERVER_IP
-	echo "zabbix服务器ip为:${g_ZABBIX_SERVER_IP}"
+    echo ${g_ZABBIX_SERVER_IP}|grep "^[0-9]\{1,3\}\.\([0-9]\{1,3\}\.\)\{2\}[0-9]\{1,3\}$" > /dev/null
+    if [ $? -ne 0 ] 
+    then
+        echo "IP is error"
+        exit 1
+    fi
 	read -p  "zabbix-server-IP is ${g_ZABBIX_SERVER_IP} yes or no:" isY
 	if [ "${isY}" != "y" ] && [ "${isY}" != "Y" ] && [ "${isY}" != "yes" ] && [ "${isY}" != "YES" ];then
-	exit 1
+	    exit 1
 	fi
 }
 #}}}
@@ -64,6 +69,7 @@ function AgentHostname()
     read -p  "what's Agent hostname(default:${AGENT_HOSTNAME}) ?:" g_ZABBIX_AGENT_HOSTNAME
     g_ZABBIX_AGENT_HOSTNAME=${g_ZABBIX_AGENT_HOSTNAME:-${AGENT_HOSTNAME}}
 	echo "the agent hostname is:${g_ZABBIX_AGENT_HOSTNAME}"
+    hostname ${g_ZABBIX_AGENT_HOSTNAME}
     sed -i "/^127.0.0.1/s/^127.0.0.1/&    ${g_ZABBIX_AGENT_HOSTNAME}/g" /etc/hosts
     sed -i "/^::1/s/^::1/&    ${g_ZABBIX_AGENT_HOSTNAME}/g" /etc/hosts
     sed -i "s/^HOSTNAME.*/HOSTNAME=${g_ZABBIX_AGENT_HOSTNAME}/g" /etc/sysconfig/network
@@ -106,13 +112,23 @@ EOF
 #{{{AgentConfig
 function AgentConfig
 {
+    # 替换
 	sed -i "s/Server=127.0.0.1/Server=${g_ZABBIX_SERVER_IP}/g" /etc/zabbix/zabbix_agentd.conf
 	sed -ri "s/(ServerActive=).*/\1${g_ZABBIX_SERVER_IP}/" /etc/zabbix/zabbix_agentd.conf
-	sed -i "s/Hostname=Zabbix\ server/Hostname=${g_ZABBIX_AGENT_HOSTNAME}/g" /etc/zabbix/zabbix_agentd.conf
+	sed -i "s/^.*Hostname=.*$/Hostname=${g_ZABBIX_AGENT_HOSTNAME}/g" /etc/zabbix/zabbix_agentd.conf
 	sed -ri 's@(LogFile=).*@\1/var/log/zabbix/zabbix_agentd.log@' /etc/zabbix/zabbix_agentd.conf
 	sed -i 's/LogFileSize=0/LogFileSize=10/' /etc/zabbix/zabbix_agentd.conf
-	sed -ri '/EnableRemoteCommands=/a EnableRemoteCommands=1' /etc/zabbix/zabbix_agentd.conf
-	sed -ri '/HostMetadataItem=/a HostMetadataItem=system.uname' /etc/zabbix/zabbix_agentd.conf
+    # 添加
+    CHECK=`grep "EnableRemoteCommands=1" /etc/zabbix/zabbix_agentd.conf | wc -l `
+    if [[ ${CHECK} == 0 ]]
+    then
+	    sed -ri '/EnableRemoteCommands=/a EnableRemoteCommands=1' /etc/zabbix/zabbix_agentd.conf
+    fi
+    CHECK=`grep "HostMetadataItem=system.uname" /etc/zabbix/zabbix_agentd.conf | wc -l `
+    if [[ ${CHECK} == 0 ]]
+    then
+	    sed -ri '/HostMetadataItem=/a HostMetadataItem=system.uname' /etc/zabbix/zabbix_agentd.conf
+    fi
 	mkdir -p /var/log/zabbix && chown -R zabbix:zabbix /var/log/zabbix/
 	mkdir -p /var/run/zabbix && chown -R zabbix:zabbix /var/run/zabbix/
 	chmod +x /etc/init.d/zabbix-agent
