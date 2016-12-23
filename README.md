@@ -2,6 +2,8 @@
 
 [安装](doc/install.md)
 
+[说明](doc/info.md)
+
 
 其他相关项目
 
